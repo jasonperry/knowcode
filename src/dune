@@ -1,0 +1,6 @@
+;; comments are like this in dune
+(executable
+  (name words))
+
+;; to use libraries
+;  (libraries lwt.unix)
