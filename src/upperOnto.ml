@@ -1,8 +1,10 @@
+(** Upper ontology
+  * These concepts and roles may be assumed in inference methods. *)
 
 open Concept
 
-(* start by specifying the root ontology in code.*)
 let universal_concept: concept = { cid="Concept"; roles=StrMap.empty }
+let entity: concept = { cid="Entity"; roles=StrMap.empty }
 let physical_object: concept = { cid="Physical_object"; roles=StrMap.empty }
 let abstract_object: concept = { cid="Abstract_object"; roles=StrMap.empty }
 let property: concept = { cid="Property"; roles=StrMap.empty }
@@ -21,22 +23,37 @@ and superclass: role = {
     range = universal_concept;
     transitive = true;
     inverse = Some subclass
-  } 
+  }
 
 let rec disjoint_with: role = {
-    rid = "disjoint_with";
+    rid = "disjointWith";
     domain = universal_concept;
     range = universal_concept;
     transitive = false;
     inverse = Some disjoint_with  (* it's own inverse! Yeah! *)
   }
 
-let () = add_role universal_concept superclass physical_object
-let () = add_role physical_object subclass universal_concept
+let has_property: role = {
+    rid = "hasProperty";
+    domain = entity;
+    range = property;
+    transitive = false;
+    inverse = None
+  }
 
-let () = add_role universal_concept superclass abstract_object
-let () = add_role abstract_object subclass universal_concept
+(* entity <-> universal *)
+let () = add_role universal_concept superclass entity
+let () = add_role entity subclass universal_concept
 
+(* physical <-> entity *)
+let () = add_role entity superclass physical_object
+let () = add_role physical_object subclass entity
+
+(* abstract <-> entity *)
+let () = add_role entity superclass abstract_object
+let () = add_role abstract_object subclass entity
+
+(* property <-> universal *)
 let () = add_role universal_concept superclass property
 let () = add_role property subclass universal_concept
 
@@ -49,3 +66,18 @@ let () = add_role physical_object disjoint_with property
 
 let () = add_role property disjoint_with abstract_object
 let () = add_role abstract_object disjoint_with property
+
+let upper_ontology =
+  ConceptGraph.create
+    [ universal_concept;
+      entity;
+      physical_object;
+      abstract_object;
+      property
+    ]
+    [ superclass;
+      subclass;
+      disjoint_with;
+      has_property
+    ]
+

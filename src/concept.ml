@@ -1,4 +1,4 @@
-
+(** A graph representation of a DL-like knowledge base. *)
 
 module StrMap = Map.Make(String)
 
@@ -8,10 +8,10 @@ let find_list s map =
   | Some l -> l
   | None -> []
 
-(* need separate types for role type and relation instance? 
- * or a role instance can just be a (role * concept) in the concept *)
+
 type concept = {
     cid: string;
+    (* Map from role name to list of role instances of that type. *)
     mutable roles: role_inst_concept list StrMap.t
   }
 and role = {         (* a role /type/. *)
@@ -69,20 +69,33 @@ let add_role c1 role c2 =
   )
 
 module ConceptGraph = struct
-  type t = concept list
+  type t = {
+      cmap: concept StrMap.t;
+      rmap: role StrMap.t;
+    }
+
+  let create clist rlist = {
+      cmap = List.fold_left
+               (fun map concept ->
+                 StrMap.add concept.cid concept map)
+               StrMap.empty
+               clist;
+      rmap = List.fold_left
+               (fun map role ->
+                 StrMap.add role.rid role map)
+               StrMap.empty
+               rlist;
+    }
+  (* Yay, now I can add inferences corresponding to questions. *)
   (* function to add concept, check for duplicate name *)
   (* function to add relation between concepts, check restrictions *)         
-  let add_concept (g: t) c =
-    c :: g
+  (* let add_concept (g: t) c =
+    c :: g *)
 end
-
-(* oh. it's meaningless to make restrictions on the subclass relation, 
- * because subclass itself is the terms in which restrictions are stated. *)
 
 (* need a concept-maker and a relation-adder that checks everything. 
  * ...and makes indexes of relations by type *)
   
-(* a concept is a node in a graph *)
 
 (* Can i encode in the type system that superclass/subclass relations are 
  * only allowed between node of same category? *)
