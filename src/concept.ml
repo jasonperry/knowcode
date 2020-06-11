@@ -14,15 +14,18 @@ type concept = {
     (* Map from role name to list of role instances of that type. *)
     mutable roles: role_inst_concept list StrMap.t
   }
-and role = {         (* a role /type/. *)
+
+(** a role /type/. *)
+and role = {         
     rid: string;
     domain: concept;
     range: concept;  (* DL role restrictions are only on the range? *)
     transitive: bool;
     inverse: role option
   }
-(* A relation instantiated for a concept, as opposed to individual.
-   In other words, a TBox role instance? *)
+
+(** A relation instantiated for a concept, as opposed to individual.
+    In other words, a TBox role instance? *)
 and role_inst_concept = {
     role: role;
     other: concept;
@@ -33,33 +36,30 @@ type individual = {
     iid: string;
     (* class has privileged status, but it can change. 
      * Can deduce or assert more specific class. *)
-    mutable myclass: concept; 
+    mutable myclass: concept;
+    (* just an idea, don't know if this is the final representation. *)
+    mutable iroles: role * [`Con of concept | `Ind of individual] list
   }
 
-(* Currently no separate type for properties; everything's a role. 
- * Property is a top-level category in the ontology. *)
-(* type property = {
-    pid: string;
-    domain: concept
-  } *)
 
 (* will the system support adding relation types? *)
 
 (* Assumes roles named "superclass" and "subclass" exist in ontology. *)
-let rec is_subclass_of c1 c2 =
+let rec concept_is_subclass_of c1 c2 =
   c1 == c2 ||
   (* Depth-first search in 2 lines! *)
   find_list "subclass" c1.roles
   |> List.exists (fun {role=_; other; default=_} ->
          (* Need physical equality here, because circular references. *)
-         other == c2 || is_subclass_of other c2)
+         other == c2 || concept_is_subclass_of other c2)
 
-let is_valid_role c1 (r: role) c2 =
-  is_subclass_of c1 r.domain && is_subclass_of c2 r.range
+(** Check that a role is allowed by domain/range restrictions. *)
+let concept_is_valid_role c1 (r: role) c2 =
+  concept_is_subclass_of c1 r.domain && concept_is_subclass_of c2 r.range
 
-(* Create role instance relating two concepts. *)
+(** Create role instance relating two concepts. *)
 (* this non-validity-checking version can be called by the checking version. *)
-let add_role c1 role c2 =
+let concept_add_role c1 role c2 =
   c1.roles <- (
     let old_roles = find_list role.rid c1.roles
     in
@@ -67,6 +67,13 @@ let add_role c1 role c2 =
       ({role=role; other=c2; default=false} :: old_roles)
       c1.roles
   )
+
+(** Get list of roles of a given type for a concept. *)
+let concept_get_roles c rname =
+  match StrMap.find_opt rname c.roles with
+  | Some rlist -> rlist
+  | None -> []
+
 
 module ConceptGraph = struct
   type t = {
@@ -86,7 +93,11 @@ module ConceptGraph = struct
                StrMap.empty
                rlist;
     }
+
+  let get_concept graph cname = StrMap.find_opt cname graph.cmap
+  let get_role graph rname = StrMap.find_opt rname graph.rmap
   (* Yay, now I can add inferences corresponding to questions. *)
+  (* Could probably use "getc" and "getr" also *)
   (* function to add concept, check for duplicate name *)
   (* function to add relation between concepts, check restrictions *)         
   (* let add_concept (g: t) c =

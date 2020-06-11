@@ -42,30 +42,30 @@ let has_property: role = {
   }
 
 (* entity <-> universal *)
-let () = add_role universal_concept superclass entity
-let () = add_role entity subclass universal_concept
+let () = concept_add_role universal_concept superclass entity
+let () = concept_add_role entity subclass universal_concept
 
 (* physical <-> entity *)
-let () = add_role entity superclass physical_object
-let () = add_role physical_object subclass entity
+let () = concept_add_role entity superclass physical_object
+let () = concept_add_role physical_object subclass entity
 
 (* abstract <-> entity *)
-let () = add_role entity superclass abstract_object
-let () = add_role abstract_object subclass entity
+let () = concept_add_role entity superclass abstract_object
+let () = concept_add_role abstract_object subclass entity
 
 (* property <-> universal *)
-let () = add_role universal_concept superclass property
-let () = add_role property subclass universal_concept
+let () = concept_add_role universal_concept superclass property
+let () = concept_add_role property subclass universal_concept
 
 (* Disjointness of all the top categories *)
-let () = add_role physical_object disjoint_with abstract_object
-let () = add_role abstract_object disjoint_with physical_object
+let () = concept_add_role physical_object disjoint_with abstract_object
+let () = concept_add_role abstract_object disjoint_with physical_object
 
-let () = add_role property disjoint_with physical_object
-let () = add_role physical_object disjoint_with property
+let () = concept_add_role property disjoint_with physical_object
+let () = concept_add_role physical_object disjoint_with property
 
-let () = add_role property disjoint_with abstract_object
-let () = add_role abstract_object disjoint_with property
+let () = concept_add_role property disjoint_with abstract_object
+let () = concept_add_role abstract_object disjoint_with property
 
 let upper_ontology =
   ConceptGraph.create
