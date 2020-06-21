@@ -1,6 +1,9 @@
-;; comments are like this in dune
+;;; comments are like this in dune
+;; (executable
+;;   (name words))
+
 (executable
-  (name words))
+  (name upperOnto))
 
 ;; to use libraries
 ;  (libraries lwt.unix)

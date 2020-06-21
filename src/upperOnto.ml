@@ -81,3 +81,4 @@ let upper_ontology =
       has_property
     ]
 
+let _ = print_endline "upperOnto now running."

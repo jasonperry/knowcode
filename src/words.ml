@@ -1,13 +1,13 @@
+(** Data structures for word syntax/semantics representation *)
 
-(* Data structures for word syntax/semantics representation *)
-
-(* Later: make these different for different languages? *)
+(** Forms of English plurals for nouns and verbs *)
 type 's pluralform =
   | S
   | Es
   | Yies
   | Irreg of 's
 
+(** Forms of English past and past participle endings *)
 type 's pastform =
   | Ed
   | Dded (* consonant doubling: "clapped" *)
@@ -15,6 +15,7 @@ type 's pastform =
   | Edden (* for the past participle "ridden" *)
   | Irreg of 's
 
+(** Forms of English present participle/gerund *)
 type 's ingform =
   | Ing
   | Dding (* consonant doubling *)
@@ -34,17 +35,18 @@ type 's ingform =
 (* Just put the tag string in the record, and when I make the map, I just
  * pull it out and add the tag separately. That's how a map works anyway. *)
 
+(** Lexical forms for a noun usage; need to know countability *)
 type 's nouninfo = { countable: bool;
                      plural: 's pluralform } (* Gerund? Infinitive? *)
 
-(* thinking that different forms of a verb can be in one record. *)
+
+(** Lexical forms of a verb usage. *)
 type 's verbinfo = { vbs: 's pluralform;
                      prespart: 's ingform;
                      past: 's pastform;
                      pastpart: 's pastform }
 
-(* Still need a dictionary to POS lookup of a word *)
-(* Actually, a datatype for a word with specific POS *)
+(** Variant for word usage info by POS. *)
 type 's lexinfo =
   | Nn of 's nouninfo
   | Vb of 's verbinfo
@@ -55,18 +57,14 @@ type 's lexinfo =
   | Conj
   | Det
            
-(* idea: word module parameterized by a module that has a 
- * "string" type that supports character indexing. This way we can support 
- * any fancy string type. *)
-
-(* I need some kind of index from strings to all the forms they represent. *)
-           
+(** Signature for the string functions I need. *)
 module type STRINGY = sig
   type t
   type c
   val get : t -> int -> c
   val length : t -> int
   val sub : t -> int -> int -> t
+  val rtrim : t -> int -> t
   val of_string : string -> t
   val show : t -> string
   val append : t -> t -> t
@@ -74,32 +72,44 @@ module type STRINGY = sig
   val compare : t -> t -> int
 end
 
-(* This is more of the "dictionary" type, supporting extraction of 
- * information. *)
+(** Module for word data structures as well as a lexicon. *)
 module Word = functor (St: STRINGY) -> struct
+
+  (** Type of map to look up parts of speech by tag. *)
   module PosMap = Map.Make(St)
+
+  (** Set to be used for all the morphos of a word. *)
   module StSet = Set.Make(St)
+
   type t = {
       baseform: St.t;
       lexdata: St.t lexinfo list;
+      (* I think I don't need these because of the separate "lexicon entry" 
+       * type. *)
       (* posdict: St.t lexinfo PosMap.t; (* gen_entry takes care... *)
       allforms: StSet.t *)
     }
+
+  (** Unparsed sentence representation. *)
   type sentence = (St.t * t) list
+
   let create ~baseform ~lexdata = {
       baseform;
       lexdata;
       (* posdict = PosMap.empty;
       allforms = StSet.empty *)
     }
-  (* Parse from JSON/Xml? *)
-  let rtrim s n = St.sub s 0 (St.length s - n)
+  
+  (* Parse from JSON/Xml? No, from OCaml code! *)
+  
   let to_string w = w.baseform  (* just a hack to print the base form *)
+
   let pluralize baseform pltype = match pltype with
     | S -> St.append baseform (St.of_string "s")
     | Es -> St.append baseform (St.of_string "es")
-    | Yies -> St.append (rtrim baseform 1) (St.of_string "ies")
+    | Yies -> St.append (St.rtrim baseform 1) (St.of_string "ies")
     | Irreg s -> s
+
   let add_ing baseform ingtype = match ingtype with
     | Ing -> St.append baseform (St.of_string "ing")
     | Dding ->
@@ -107,8 +117,9 @@ module Word = functor (St: STRINGY) -> struct
        in
        St.append baseform dcons
        |> St.append_r (St.of_string "ing")
-    | Eing -> St.append (rtrim baseform 1) (St.of_string "ing")
+    | Eing -> St.append (St.rtrim baseform 1) (St.of_string "ing")
     | Irreg s -> s
+
   let add_past baseform pastform = match pastform with
     | Ed -> St.append baseform (St.of_string "ed")
     | Dded ->
@@ -116,17 +127,17 @@ module Word = functor (St: STRINGY) -> struct
        in
        St.append baseform dcons
        |> St.append_r (St.of_string "ed")
-    | Yied -> rtrim baseform 1
+    | Yied -> St.rtrim baseform 1
               |> St.append_r (St.of_string "ied")
     | Edden ->
        let len = St.length baseform in
        let dcons = St.sub baseform (len-2) 1
        in
-       St.append (rtrim baseform 1) dcons
+       St.append (St.rtrim baseform 1) dcons
        |> St.append_r (St.of_string "en")
     | Irreg s -> s
-  (* Generate all lexicon entries from string to (string, POS, t) triples 
-   * (originally just lexinfo, but t has the base in it too, so good) *)
+
+  (** Generate all lexicon entries: string -> (base, POS, t) *)
   let gen_entry w =
     w.lexdata
     |> List.map (function
@@ -153,8 +164,7 @@ module Word = functor (St: STRINGY) -> struct
     |> List.concat
 end
 
-(* String-specific module implementations start here. *)
-                                     
+(** String module using ordinary OCaml strings. *)
 module StringEx : STRINGY = struct
   include String
   type c = char
@@ -162,23 +172,17 @@ module StringEx : STRINGY = struct
   let show s = s
   let append s1 s2 = s1 ^ s2
   let append_r s1 s2 = s2 ^ s1
+  let rtrim s n = sub s 0 (length s - n)
 end
 
 (* For the toplevel pretty-printer *)
 let format_stringex fmt ss =
   Format.fprintf fmt "\"%s\"" (StringEx.show ss)
 
-                               
-(* Eventually want to parameterize by the language too...or,
- * Just have a different Word module of same signature *)
+(** Word functor instantiated with the plain-string module *)
 module StrWord = Word(StringEx)
 
-(* Assumes word also includes punctuation. *)
+(** Sentence keeping the original word strings. Not sure if needed. *)
 type sentence = (string * StrWord.t) list
-(* no way, right? I'd have to put the sentence type in a module. Oh, OK. 
- * do that. it's not a class!! 
- * So all the types parameterized by the functor argument should be in the functor? 
- * I guess that makes sense. *)
-(* type 's sentence = (STRINGY.t * Word.t) list *) 
-let () = print_endline "Hello, word world."
 
+let () = print_endline "Hello, word world."
